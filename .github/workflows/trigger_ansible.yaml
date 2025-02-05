@@ -14,4 +14,4 @@ jobs:
         uses: actions/checkout@v2
 
       - name: SSH into Ansible Main Node and Run Playbook
-        run: ssh -o StrictHostKeyChecking=no ubuntu@192.168.187.134 "cd /home/ubuntu/injectived && git pull && ansible-playbook -i inventory.ini deploy_injective.yaml"
+        run: ssh -o StrictHostKeyChecking=no -p 2222  ubuntu@59.13.5.197 "cd /home/ubuntu/injectived && git pull && ansible-playbook -i inventory.ini deploy_injective.yaml"

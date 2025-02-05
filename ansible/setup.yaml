@@ -1,0 +1,32 @@
+- name: Initial setup for Injective nodes
+  hosts: all
+  become: yes
+  tasks:
+    - name: Update and upgrade packages
+      apt:
+        update_cache: yes
+        upgrade: dist
+
+    - name: Install required packages
+      apt:
+        name:
+          - curl
+          - jq
+          - unzip
+          - tar
+        state: present
+
+    - name: Create Injective directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - /root/.injectived
+        - /root/.injectived/config
+        - /root/.injectived/data
+
+    - name: Set hostname
+      hostname:
+        name: "{{ inventory_hostname }}"
+

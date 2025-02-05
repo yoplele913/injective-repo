@@ -1,0 +1,102 @@
+- name: Deploy Injective Nodes and Apply Polkachu Snapshot
+  hosts: injective_nodes
+  become: yes
+  become_user: ubuntu
+  vars:
+    injective_home: "/home/ubuntu/.injectived"
+    snapshot_number: 104691140  # 최신 스냅샷 번호를 변경할 수 있도록 변수화
+    snapshot_file: "injective_{{ snapshot_number }}.tar.lz4"
+    snapshot_url: "https://snapshots.polkachu.com/snapshots/injective/{{ snapshot_file }}"
+
+  tasks:
+     # Polkachu 스냅샷 관련 옵션 설정 (가장 먼저 실행)
+    - name: Set pruning and indexing options in config files
+      block:
+        - name: Configure app.toml for pruning
+          lineinfile:
+            path: "{{ injective_home }}/config/app.toml"
+            regexp: '^pruning ='
+            line: 'pruning = "custom"'
+
+         # app.toml 기존 중복 설정 제거 후 재설정
+        #- name: Ensure app.toml does not contain duplicate entries
+         # shell: |
+            #sed -i '/^pruning-keep-recent =/d' "{{ injective_home }}/config/app.toml"
+            #sed -i '/^pruning-keep-every =/d' "{{ injective_home }}/config/app.toml"
+            #sed -i '/^pruning-interval =/d' "{{ injective_home }}/config/app.toml"
+
+        - name: Configure pruning strategy - keep recent
+          lineinfile:
+            path: "{{ injective_home }}/config/app.toml"
+            regexp: '^pruning-keep-recent ='
+            line: 'pruning-keep-recent = "100"'
+            backrefs: yes
+            create: yes
+
+        - name: Configure pruning strategy - keep every
+          lineinfile:
+            path: "{{ injective_home }}/config/app.toml"
+            regexp: '^pruning-keep-every ='
+            line: 'pruning-keep-every = "0"'
+            backrefs: yes
+            create: yes
+
+        - name: Configure pruning strategy - interval
+          lineinfile:
+            path: "{{ injective_home }}/config/app.toml"
+            regexp: '^pruning-interval ='
+            line: 'pruning-interval = "10"'
+            backrefs: yes
+            create: yes
+
+        - name: Configure config.toml for indexer
+          lineinfile:
+            path: "{{ injective_home }}/config/config.toml"
+            regexp: '^indexer ='
+            line: 'indexer = "null"'
+
+              # Polkachu 스냅샷 다운로드 (변수 적용)
+    - name: Download Polkachu snapshot
+      shell: wget -O {{ snapshot_file }} {{ snapshot_url }} --inet4-only
+      args:
+        chdir: "/home/ubuntu"
+
+          # Injective 서비스 중지
+    - name: Stop Injective service if running
+      shell: systemctl stop injectived
+      ignore_errors: yes
+
+    # Reset Injective node state
+    - name: Reset Injective node state
+      shell: injectived tendermint unsafe-reset-all --home $HOME/.injectived --keep-addr-book
+      ignore_errors: yes
+
+    #  wasm 폴더 삭제
+    - name: Remove old wasm folder if exists
+      file:
+        path: "{{ injective_home }}/wasm"
+        state: absent
+
+    # 스냅샷 압축 해제 (변수 적용)
+    - name: Extract snapshot
+      shell: lz4 -c -d {{ snapshot_file }} | tar -x -C $HOME/.injectived
+      args:
+        chdir: "/home/ubuntu"
+
+    # 7. 다운로드한 스냅샷 삭제하여 공간 확보
+   # - name: Remove downloaded snapshot to save space
+   #   file:
+   #     path: "~/{{ snapshot_file }}"
+   #     state: absent
+
+    # 8. Systemd 데몬 리로드
+    - name: Reload systemd daemon
+      shell: systemctl daemon-reload
+      async: 30
+      poll: 0
+
+    # 9. Injective 서비스 시작
+    - name: Start Injective service
+      shell: systemctl start injectived
+      async: 30
+      poll: 0

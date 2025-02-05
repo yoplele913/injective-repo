@@ -15,11 +15,11 @@ jobs:
 
       - name: SSH into Ansible Main Node and Run Playbook
         run: |
-          ssh -o StrictHostKeyChecking=no ansible_user@192.168.187.X << 'EOF'
-            cd /home/ansible_user/injective
+          ssh -o StrictHostKeyChecking=no ubuntu@192.168.187.134 << 'EOF'
+            cd /home/ubuntu/injectived
             git pull  # 최신 코드 가져오기
             ansible-playbook -i inventory.ini deploy_injective.yaml
           EOF
         env:
-          ANSIBLE_USER: ansible_user
+          ANSIBLE_USER: ubuntu
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}

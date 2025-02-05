@@ -1,0 +1,107 @@
+---
+- name: Deploy Injective nodes
+  hosts: injective_nodes
+  become: yes
+  vars:
+    injective_url: "https://github.com/InjectiveLabs/injective-chain-releases/releases/download/release-prod-1734610315/linux-amd64.zip"
+    peggo_url: "https://github.com/InjectiveLabs/peggo/releases/download/v1.1.1/peggo-linux-amd64"
+    seeds: "ade4d8bc8cbe014af6ebdf3cb7b1e9ad36f412c0@seeds.polkachu.com:14356"
+    chain_id: "injective-1"
+    inventory_hostname: injective
+
+  tasks:
+    - name: Install required dependencies
+      become: yes  # root 권한 실행
+      apt:
+        update_cache: yes
+        name:
+          - curl
+          - wget
+          - unzip
+          - lz4
+        state: present
+
+    # 2. Injective 바이너리 다운로드 및 압축 해제
+    - name: Download Injective binary
+      get_url:
+        url: "{{ injective_url }}"
+        dest: /home/ubuntu/linux-amd64.zip
+
+    - name: Extract Injective binary
+      unarchive:
+        src: /home/ubuntu/linux-amd64.zip
+        dest: /home/ubuntu/
+        remote_src: yes
+
+    - name: Move injectived binary to /usr/bin
+      become: yes
+      become_user: root
+      command: sudo mv /home/ubuntu/injectived /usr/bin/
+
+    # 4. 추가 라이브러리 설치
+    - name: Install libwasmvm
+      become: yes
+      become_user: root
+      command: sudo mv /home/ubuntu/libwasmvm.x86_64.so /usr/lib/
+
+    # 5. Injective 노드 초기화
+    - name: Initialize Injective node
+      shell: |
+        MONIKER={{ inventory_hostname }}
+        injectived init "$MONIKER" --chain-id {{ chain_id }}
+      args:
+        chdir: /home/ubuntu/
+      become: yes
+      become_user: ubuntu
+
+    # 6. Mainnet 설정 파일 복사
+    - name: Clone Mainnet config repository
+      git:
+        repo: "https://github.com/InjectiveLabs/mainnet-config"
+        dest: /home/ubuntu/mainnet-config
+
+    - name: Copy genesis.json
+      copy:
+        src: /home/ubuntu/mainnet-config/10001/genesis.json
+        dest: /home/ubuntu/.injectived/config/genesis.json
+
+    - name: Copy app.toml
+      copy:
+        src: /home/ubuntu/mainnet-config/10001/app.toml
+        dest: /home/ubuntu/.injectived/config/app.toml
+
+    - name: Configure seeds in config.toml
+      lineinfile:
+        path: /home/ubuntu/.injectived/config/config.toml
+        regexp: '^seeds ='
+        line: 'seeds = "{{ seeds }}"'
+
+    # 7. Systemd 서비스 파일 구성
+    - name: Configure systemd service for Injective
+      become: yes
+      copy:
+        dest: /etc/systemd/system/injectived.service
+        content: |
+          [Unit]
+          Description=injectived
+          [Service]
+          WorkingDirectory=/usr/bin
+          ExecStart=/bin/bash -c '/usr/bin/injectived --log-level=error start'
+          Type=simple
+          Restart=always
+          RestartSec=5
+          User=ubuntu
+          [Install]
+          WantedBy=multi-user.target
+
+    # 8. Systemd 서비스 활성화 및 시작
+    - name: Reload systemd daemon
+      become: yes
+      shell: systemctl daemon-reload
+      async: 30
+      poll: 0
+
+     
+
+
+

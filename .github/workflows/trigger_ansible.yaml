@@ -1,0 +1,25 @@
+name: Trigger Ansible Playbook for Injective
+
+on:
+  push:
+    branches:
+      - main  # main 브랜치에 Push될 때 실행
+
+jobs:
+  trigger-ansible:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+
+      - name: SSH into Ansible Main Node and Run Playbook
+        run: |
+          ssh -o StrictHostKeyChecking=no ansible_user@192.168.187.X << 'EOF'
+            cd /home/ansible_user/injective
+            git pull  # 최신 코드 가져오기
+            ansible-playbook -i inventory.ini deploy_injective.yaml
+          EOF
+        env:
+          ANSIBLE_USER: ansible_user
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}

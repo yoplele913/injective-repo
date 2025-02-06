@@ -10,16 +10,16 @@
     inventory_hostname: injective
 
   tasks:
-   # - name: Install required dependencies
-   #   become: yes  # root 권한 실행
-   #   apt:
-   #     update_cache: yes
-    #    name:
-     #     - curl
-      #    - wget
-       #   - unzip
-        #  - lz4
-       # state: present
+    - name: Install required dependencies
+      become: yes  # root 권한 실행
+      apt:
+        update_cache: yes
+        name:
+          - curl
+          - wget
+          - unzip
+          - lz4
+        state: present
 
     # 2. Injective 바이너리 다운로드 및 압축 해제
     - name: Download Injective binary
@@ -101,7 +101,13 @@
       async: 30
       poll: 0
 
-     
+    - name: Restart systemd daemon
+      become: yes
+      shell: systemctl restart injectived
+      async: 30
+      poll: 0
+
+
 
 
 

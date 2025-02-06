@@ -6,12 +6,15 @@ on:
       - main  # main 브랜치에 Push될 때 실행
 
 jobs:
-  trigger-ansible:
-    runs-on: ubuntu-latest
+  run-ansible:
+    runs-on: self-hosted
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v2
 
-      - name: SSH into Ansible Main Node and Run Playbook
-        run: ssh -o StrictHostKeyChecking=no -p 2222  ubuntu@59.13.5.197 "cd /home/ubuntu/injectived && git pull && ansible-playbook -i inventory.ini deploy_injective.yaml"
+      - name: Run Ansible Playbook
+        run: |
+          cd /home/ubuntu/injectived
+          git pull
+          ansible-playbook -i inventory.ini deploy_injective.yaml

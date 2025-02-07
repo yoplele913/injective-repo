@@ -21,7 +21,7 @@
           - lz4
         state: present
 
-     2. Injective 바이너리 다운로드 및 압축 해제
+    # 2. Injective 바이너리 다운로드 및 압축 해제
     - name: Download Injective binary
       get_url:
         url: "{{ injective_url }}"

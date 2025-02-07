@@ -101,6 +101,12 @@
       async: 30
       poll: 0
 
+    - name: Stop systemd daemon
+      become: yes
+      shell: systemctl stop injectived
+      async: 30
+      poll: 0
+
     - name: Restart systemd daemon
       become: yes
       shell: systemctl restart injectived

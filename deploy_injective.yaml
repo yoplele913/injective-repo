@@ -22,16 +22,16 @@
         state: present
 
     # 2. Injective 바이너리 다운로드 및 압축 해제
-    - name: Download Injective binary
-      get_url:
-        url: "{{ injective_url }}"
-        dest: /home/ubuntu/linux-amd64.zip
+    #- name: Download Injective binary
+    #  get_url:
+    #    url: "{{ injective_url }}"
+    #    dest: /home/ubuntu/linux-amd64.zip
 
-    - name: Extract Injective binary
-      unarchive:
-        src: /home/ubuntu/linux-amd64.zip
-        dest: /home/ubuntu/
-        remote_src: yes
+    #- name: Extract Injective binary
+    #  unarchive:
+    #    src: /home/ubuntu/linux-amd64.zip
+    #    dest: /home/ubuntu/
+    #    remote_src: yes
 
     - name: Move injectived binary to /usr/bin
       become: yes

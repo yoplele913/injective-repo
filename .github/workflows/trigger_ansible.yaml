@@ -17,6 +17,6 @@ jobs:
         run: |
           cd /home/ubuntu/injectived
           git pull
-          ansible-playbook -i inventory.ini deploy_injective.yaml
+          ansible-playbook -i inventory.ini deploy_snapshot.yaml
 
 

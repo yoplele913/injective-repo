@@ -25,13 +25,13 @@
             #sed -i '/^pruning-keep-every =/d' "{{ injective_home }}/config/app.toml"
             #sed -i '/^pruning-interval =/d' "{{ injective_home }}/config/app.toml"
 
-       # - name: Configure pruning strategy - keep recent
-       #   lineinfile:
-       #     path: "{{ injective_home }}/config/app.toml"
-       #     regexp: '^pruning-keep-recent ='
-       #     line: 'pruning-keep-recent = "100"'
-       #     backrefs: yes
-       #     create: yes
+        - name: Configure pruning strategy - keep recent
+          lineinfile:
+            path: "{{ injective_home }}/config/app.toml"
+            regexp: '^pruning-keep-recent ='
+            line: 'pruning-keep-recent = "100"'
+            backrefs: yes
+            create: yes
 
         - name: Configure pruning strategy - keep every
           lineinfile:

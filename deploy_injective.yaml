@@ -1,6 +1,6 @@
 ---
 - name: Deploy Injective nodes
-  hosts: injective_nodes
+  hosts: localhost
   become: yes
   vars:
     injective_url: "https://github.com/InjectiveLabs/injective-chain-releases/releases/download/release-prod-1734610315/linux-amd64.zip"
@@ -70,7 +70,7 @@
         src: /home/ubuntu/mainnet-config/10001/app.toml
         dest: /home/ubuntu/.injectived/config/app.toml
 
-    - name: Configure seeds in config.toml
+- name: Configure seeds in config.toml
       lineinfile:
         path: /home/ubuntu/.injectived/config/config.toml
         regexp: '^seeds ='
@@ -112,8 +112,3 @@
       shell: systemctl restart injectived
       async: 30
       poll: 0
-
-
-
-
-

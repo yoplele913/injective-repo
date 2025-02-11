@@ -90,10 +90,10 @@
    #     state: absent
 
     # 8. Systemd 데몬 리로드
-    #- name: Reload systemd daemon
-    #  shell: systemctl daemon-reload
-    #  async: 30
-    #  poll: 0
+    - name: Reload systemd daemon
+      shell: systemctl daemon-reload
+      async: 30
+      poll: 0
 
     # 9. Injective 서비스 시작
     - name: Start Injective service

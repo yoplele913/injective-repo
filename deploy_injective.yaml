@@ -31,18 +31,18 @@
 
     - name: Ensure old Injective binary is removed before extraction
       file:
-      path: /home/ubuntu/injectived
-      state: absent
+        path: /home/ubuntu/injectived
+        state: absent
 
     - name: Ensure old Peggo binary is removed before extraction
       file:
-      path: /home/ubuntu/peggo
-      state: absent
+        path: /home/ubuntu/peggo
+        state: absent
 
     - name: Ensure old libwasmvm is removed before extraction
       file:
-      path: /home/ubuntu/libwasmvm.x86_64.so
-      state: absent
+        path: /home/ubuntu/libwasmvm.x86_64.so
+        state: absent
 
     - name: Extract Injective binary
       unarchive:

@@ -56,10 +56,10 @@
             line: 'indexer = "null"'
 
               # Polkachu 스냅샷 다운로드 (변수 적용)
-    - name: Download Polkachu snapshot
-      shell: wget -O {{ snapshot_file }} {{ snapshot_url }} --inet4-only
-      args:
-        chdir: "/home/ubuntu"
+#    - name: Download Polkachu snapshot
+#      shell: wget -O {{ snapshot_file }} {{ snapshot_url }} --inet4-only
+#      args:
+#        chdir: "/home/ubuntu"
 
           # Injective 서비스 중지
     - name: Stop Injective service if running
@@ -90,10 +90,10 @@
    #     state: absent
 
     # 8. Systemd 데몬 리로드
-    - name: Reload systemd daemon
-      shell: systemctl daemon-reload
-      async: 30
-      poll: 0
+    #- name: Reload systemd daemon
+    #  shell: systemctl daemon-reload
+    #  async: 30
+    #  poll: 0
 
     # 9. Injective 서비스 시작
     - name: Start Injective service

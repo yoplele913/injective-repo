@@ -29,6 +29,21 @@
         url: "{{ injective_url }}"
         dest: /home/ubuntu/linux-amd64.zip
 
+    - name: Ensure old Injective binary is removed before extraction
+      file:
+      path: /home/ubuntu/injectived
+      state: absent
+
+    - name: Ensure old Peggo binary is removed before extraction
+      file:
+      path: /home/ubuntu/peggo
+      state: absent
+
+    - name: Ensure old libwasmvm is removed before extraction
+      file:
+      path: /home/ubuntu/libwasmvm.x86_64.so
+      state: absent
+
     - name: Extract Injective binary
       unarchive:
         src: /home/ubuntu/linux-amd64.zip

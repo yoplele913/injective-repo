@@ -2,6 +2,7 @@
 - name: Deploy Injective nodes
   hosts: localhost
   become: yes
+  become_method: sudo
   vars:
     injective_url: "https://github.com/InjectiveLabs/injective-chain-releases/releases/download/release-prod-1734610315/linux-amd64.zip"
     peggo_url: "https://github.com/InjectiveLabs/peggo/releases/download/v1.1.1/peggo-linux-amd64"

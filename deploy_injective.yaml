@@ -38,6 +38,11 @@
       become_user: root
       command: sudo mv /home/ubuntu/injectived /usr/bin/
 
+    - name: Set execute permissions for injectived binary
+      file:
+        path: /usr/bin/injectived
+        mode: '0755'
+
     # 4. 추가 라이브러리 설치
     - name: Install libwasmvm
       become: yes
@@ -70,15 +75,14 @@
         src: /home/ubuntu/mainnet-config/10001/app.toml
         dest: /home/ubuntu/.injectived/config/app.toml
 
-- name: Configure seeds in config.toml
+    - name: Configure seeds in config.toml
       lineinfile:
         path: /home/ubuntu/.injectived/config/config.toml
         regexp: '^seeds ='
         line: 'seeds = "{{ seeds }}"'
 
     # 7. Systemd 서비스 파일 구성
-    - name: Configure systemd service for Injective
-      become: yes
+    - name: Configure systemd service for Injective (run as root)
       copy:
         dest: /etc/systemd/system/injectived.service
         content: |
@@ -86,29 +90,32 @@
           Description=injectived
           [Service]
           WorkingDirectory=/usr/bin
-          ExecStart=/bin/bash -c '/usr/bin/injectived --log-level=error start'
+          ExecStart=/usr/bin/injectived --log-level=error
           Type=simple
           Restart=always
           RestartSec=5
-          User=ubuntu
+          User=root
           [Install]
           WantedBy=multi-user.target
 
-    # 8. Systemd 서비스 활성화 및 시작
     - name: Reload systemd daemon
-      become: yes
-      shell: systemctl daemon-reload
+      command: sudo systemctl daemon-reload
       async: 30
-      poll: 0
 
-    - name: Stop systemd daemon
-      become: yes
-      shell: systemctl stop injectived
+    - name: Restart Injectived service
+      command: sudo systemctl restart injectived
       async: 30
-      poll: 0
 
-    - name: Restart systemd daemon
-      become: yes
-      shell: systemctl restart injectived
+    - name: Enable Injectived service to start on boot
+      command: sudo systemctl enable injectived
       async: 30
-      poll: 0
+
+    - name: Stop Injectived service (if needed)
+      command: sudo systemctl stop injectived
+      ignore_errors: yes
+      async: 30
+
+    - name: Start Injectived service
+      command: sudo systemctl start injectived
+      async: 30
+    

@@ -38,10 +38,10 @@
       become_user: root
       command: sudo mv /home/ubuntu/injectived /usr/bin/
 
-    - name: Set execute permissions for injectived binary
-      file:
-        path: /usr/bin/injectived
-        mode: '0755'
+   # - name: Set execute permissions for injectived binary
+   #   file:
+   #     path: /usr/bin/injectived
+   #     mode: '0755'
 
     # 4. 추가 라이브러리 설치
     - name: Install libwasmvm

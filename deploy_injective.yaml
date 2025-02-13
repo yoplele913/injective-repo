@@ -94,13 +94,15 @@
         content: |
           [Unit]
           Description=injectived
+
           [Service]
           WorkingDirectory=/usr/bin
-          ExecStart=/usr/bin/injectived --log-level=error
+          ExecStart=/bin/bash -c '/usr/bin/injectived --log-level=error'
           Type=simple
           Restart=always
           RestartSec=5
           User=root
+
           [Install]
           WantedBy=multi-user.target
 

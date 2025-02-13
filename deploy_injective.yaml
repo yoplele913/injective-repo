@@ -59,9 +59,7 @@
 
     # 5. Injective 노드 초기화
     - name: Initialize Injective node
-      shell: |
-        MONIKER={{ inventory_hostname }}
-        injectived init "$MONIKER" --chain-id {{ chain_id }}
+      shell: injectived init "{{ inventory_hostname }}" --chain-id "{{ chain_id }}"
       args:
         chdir: /home/ubuntu/
       become: yes

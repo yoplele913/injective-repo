@@ -118,12 +118,11 @@
   #    command: sudo systemctl enable injectived
   #    async: 30
 
-  #  - name: Stop Injectived service (if needed)
-  #    command: sudo systemctl stop injectived
-  #    ignore_errors: yes
-  #    async: 30
+    - name: Stop Injectived service (if needed)
+      command: sudo systemctl stop injectived
+      ignore_errors: yes
+      async: 30
 
-   # - name: Start Injectived service
-   #   command: sudo systemctl start injectived
-   #   async: 30
-    
+    - name: Start Injectived service
+      command: sudo systemctl start injectived
+      async: 30

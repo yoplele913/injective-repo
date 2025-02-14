@@ -66,16 +66,28 @@
       shell: systemctl stop injectived
       ignore_errors: yes
       async: 30
-
+  
+    - name: Backup priv_validator_state.json
+      copy:
+        src: "{{ ansible_env.HOME }}/.injectived/data/priv_validator_state.json"
+        dest: "{{ ansible_env.HOME }}/.injectived/priv_validator_state.json.backup"
+        remote_src: yes
+   
     # Reset Injective node state
     - name: Reset Injective node state
       shell: injectived tendermint unsafe-reset-all --home {{ ansible_env.HOME }}/.injectived --keep-addr-book
       
-    #  wasm 폴더 삭제
-    #- name: Remove old wasm folder if exists
-    #  file:
-    #    path: "{{ injective_home }}/wasm"
-    #    state: absent
+    - name: Restore priv_validator_state.json
+      copy:
+        src: "{{ ansible_env.HOME }}/.injectived/priv_validator_state.json.backup"
+        dest: "{{ ansible_env.HOME }}/.injectived/data/priv_validator_state.json"
+        remote_src: yes
+     
+    # wasm 폴더 삭제
+    - name: Remove old wasm folder if exists
+      file:
+        path: "{{ injective_home }}/wasm"
+        state: absent
 
     #  스냅샷 압축 해제 (변수 적용)
     - name: Extract snapshot

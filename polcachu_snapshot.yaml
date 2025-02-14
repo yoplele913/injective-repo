@@ -77,7 +77,7 @@
     #    path: "{{ injective_home }}/wasm"
     #    state: absent
 
-     스냅샷 압축 해제 (변수 적용)
+    #  스냅샷 압축 해제 (변수 적용)
     - name: Extract snapshot
       shell: lz4 -c -d {{ snapshot_file }} | tar -x -C {{ ansible_env.HOME }}/.injectived
       args:

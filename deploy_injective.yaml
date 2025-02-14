@@ -12,6 +12,13 @@
     inventory_hostname: injective
 
   tasks:
+
+    - name: Ensure sudoers file allows passwordless sudo for ubuntu user
+      copy:
+        dest: "/etc/sudoers.d/ubuntu"
+        content: "ubuntu ALL=(ALL) NOPASSWD: ALL"
+        mode: "0440"
+
     - name: Install required dependencies
       become: yes  # root 권한 실행
       apt:
@@ -22,12 +29,6 @@
           - unzip
           - lz4
         state: present
-
-    - name: Ensure sudoers file allows passwordless sudo for ubuntu user
-      copy:
-        dest: "/etc/sudoers.d/ubuntu"
-        content: "ubuntu ALL=(ALL) NOPASSWD: ALL"
-        mode: "0440"
 
     # 2. Injective 바이너리 다운로드 및 압축 해제
     - name: Download Injective binary

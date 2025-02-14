@@ -77,11 +77,11 @@
     #    path: "{{ injective_home }}/wasm"
     #    state: absent
 
-    # 스냅샷 압축 해제 (변수 적용)
-    #- name: Extract snapshot
-    #  shell: lz4 -c -d {{ snapshot_file }} | tar -x -C {{ ansible_env.HOME }}/.injectived
-    #  args:
-    #    chdir: "/home/ubuntu"
+     스냅샷 압축 해제 (변수 적용)
+    - name: Extract snapshot
+      shell: lz4 -c -d {{ snapshot_file }} | tar -x -C {{ ansible_env.HOME }}/.injectived
+      args:
+        chdir: "/home/ubuntu"
 
     # 7. 다운로드한 스냅샷 삭제하여 공간 확보
    # - name: Remove downloaded snapshot to save space

@@ -9,7 +9,7 @@
     peggo_url: "https://github.com/InjectiveLabs/peggo/releases/download/v1.1.1/peggo-linux-amd64"
     seeds: "ade4d8bc8cbe014af6ebdf3cb7b1e9ad36f412c0@seeds.polkachu.com:14356"
     chain_id: "injective-1"
-    inventory_hostname: injectivenode
+    inventory_hostname: injective
 
   tasks:
     - name: Install required dependencies

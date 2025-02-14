@@ -12,13 +12,6 @@
     inventory_hostname: injective
 
   tasks:
-
-    - name: Ensure sudoers file allows passwordless sudo for ubuntu user
-      copy:
-        dest: "/etc/sudoers.d/ubuntu"
-        content: "ubuntu ALL=(ALL) NOPASSWD: ALL"
-        mode: "0440"
-
     - name: Install required dependencies
       become: yes  # root 권한 실행
       apt:

@@ -70,9 +70,7 @@
     # Reset Injective node state
     - name: Reset Injective node state
       shell: injectived tendermint unsafe-reset-all --home {{ ansible_env.HOME }}/.injectived --keep-addr-book
-      become: yes
-      become_user: ubuntu
-
+      
     #  wasm 폴더 삭제
     #- name: Remove old wasm folder if exists
     #  file:

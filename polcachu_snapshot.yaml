@@ -56,10 +56,10 @@
             line: 'indexer = "null"'
 
               # Polkachu 스냅샷 다운로드 (변수 적용)
-    - name: Download Polkachu snapshot
-      shell: wget -c -O {{ snapshot_file }} {{ snapshot_url }} --inet4-only
-      args:
-        chdir: "/home/ubuntu"
+    #- name: Download Polkachu snapshot
+    #  shell: wget -c -O {{ snapshot_file }} {{ snapshot_url }} --inet4-only
+    #  args:
+    #    chdir: "/home/ubuntu"
 
           # Injective 서비스 중지
     - name: Stop Injective service if running
@@ -69,21 +69,21 @@
 
     # Reset Injective node state
     - name: Reset Injective node state
-      command: injectived tendermint unsafe-reset-all --home {{ ansible_env.HOME }}/.injectived --keep-addr-book
+      shell: injectived tendermint unsafe-reset-all --home {{ ansible_env.HOME }}/.injectived --keep-addr-book
       become: yes
       become_user: ubuntu
 
     #  wasm 폴더 삭제
-    - name: Remove old wasm folder if exists
-      file:
-        path: "{{ injective_home }}/wasm"
-        state: absent
+    #- name: Remove old wasm folder if exists
+    #  file:
+    #    path: "{{ injective_home }}/wasm"
+    #    state: absent
 
     # 스냅샷 압축 해제 (변수 적용)
-    - name: Extract snapshot
-      shell: lz4 -c -d {{ snapshot_file }} | tar -x -C {{ ansible_env.HOME }}/.injectived
-      args:
-        chdir: "/home/ubuntu"
+    #- name: Extract snapshot
+    #  shell: lz4 -c -d {{ snapshot_file }} | tar -x -C {{ ansible_env.HOME }}/.injectived
+    #  args:
+    #    chdir: "/home/ubuntu"
 
     # 7. 다운로드한 스냅샷 삭제하여 공간 확보
    # - name: Remove downloaded snapshot to save space

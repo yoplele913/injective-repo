@@ -56,32 +56,20 @@
             line: 'indexer = "null"'
 
               # Polkachu 스냅샷 다운로드 (변수 적용)
-    - name: Download Polkachu snapshot
-      shell: wget -c -O {{ snapshot_file }} {{ snapshot_url }} --inet4-only
-      args:
-        chdir: "/home/ubuntu"
+   # - name: Download Polkachu snapshot
+   #   shell: wget -c -O {{ snapshot_file }} {{ snapshot_url }} --inet4-only
+   #   args:
+   #     chdir: "/home/ubuntu"
 
           # Injective 서비스 중지
     - name: Stop Injective service if running
       shell: systemctl stop injectived
       ignore_errors: yes
       async: 30
-  
-    - name: Backup priv_validator_state.json
-      copy:
-        src: "{{ ansible_env.HOME }}/.injectived/data/priv_validator_state.json"
-        dest: "{{ ansible_env.HOME }}/.injectived/priv_validator_state.json.backup"
-        remote_src: yes
    
     # Reset Injective node state
     - name: Reset Injective node state
       shell: injectived tendermint unsafe-reset-all --home {{ ansible_env.HOME }}/.injectived --keep-addr-book
-      
-    - name: Restore priv_validator_state.json
-      copy:
-        src: "{{ ansible_env.HOME }}/.injectived/priv_validator_state.json.backup"
-        dest: "{{ ansible_env.HOME }}/.injectived/data/priv_validator_state.json"
-        remote_src: yes
      
     # wasm 폴더 삭제
     - name: Remove old wasm folder if exists

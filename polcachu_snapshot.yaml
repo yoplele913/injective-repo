@@ -4,7 +4,7 @@
   become: yes
   vars:
     injective_home: "/home/ubuntu/.injectived"
-    snapshot_number: 105881832  # 최신 스냅샷 번호를 변경할 수 있도록 변수화
+    snapshot_number: 106268970  # 최신 스냅샷 번호를 변경할 수 있도록 변수화
     snapshot_file: "injective_{{ snapshot_number }}.tar.lz4"
     snapshot_url: "https://snapshots.polkachu.com/snapshots/injective/{{ snapshot_file }}"
 

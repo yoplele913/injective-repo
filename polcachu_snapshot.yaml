@@ -66,11 +66,31 @@
       shell: systemctl stop injectived
       ignore_errors: yes
       async: 30
+<<<<<<< HEAD
    
     # Reset Injective node state
     - name: Reset Injective node state
       shell: injectived tendermint unsafe-reset-all --home {{ ansible_env.HOME }}/.injectived --keep-addr-book
      
+=======
+  
+   # - name: Backup priv_validator_state.json
+   #   copy:
+   #     src: "{{ ansible_env.HOME }}/.injectived/data/priv_validator_state.json"
+   #     dest: "{{ ansible_env.HOME }}/.injectived/priv_validator_state.json.backup"
+   #     remote_src: yes
+
+    # Reset Injective node state
+    - name: Reset Injective node state
+      shell: injectived tendermint unsafe-reset-all --home {{ ansible_env.HOME }}/.injectived --keep-addr-book
+
+   # - name: Restore priv_validator_state.json
+   #   copy:
+   #     src: "{{ ansible_env.HOME }}/.injectived/priv_validator_state.json.backup"
+   #     dest: "{{ ansible_env.HOME }}/.injectived/data/priv_validator_state.json"
+   #     remote_src: yes
+  
+>>>>>>> 1ad2a1d (aws)
     # wasm 폴더 삭제
     - name: Remove old wasm folder if exists
       file:

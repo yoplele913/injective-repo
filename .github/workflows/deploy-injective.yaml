@@ -22,7 +22,7 @@ jobs:
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.AWS_SSH_PRIVATE_KEY }}" > ~/.ssh/aws
-          chmod 600 ~/.ssh/private_ssh
+          chmod 600 ~/.ssh/aws
           ssh-keyscan -H 43.201.35.165 >> ~/.ssh/known_hosts
 
       - name: Run Ansible Playbook on AWS EC2

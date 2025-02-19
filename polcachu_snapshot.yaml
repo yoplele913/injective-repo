@@ -74,7 +74,7 @@
     # wasm 폴더 삭제
     - name: Remove old wasm folder if exists
       file:
-        path: "{{ injective_home }}"/wasm
+        path: "{{ injective_home }}/wasm"
         state: absent
 
     - name: Extract snapshot

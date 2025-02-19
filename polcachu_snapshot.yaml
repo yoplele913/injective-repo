@@ -4,7 +4,7 @@
   become: yes
   vars:
     injective_home: "/home/ubuntu/.injectived"
-    snapshot_number: 106492883  # 최신 스냅샷 번호를 변경할 수 있도록 변수화
+    snapshot_number: 106513793  # 최신 스냅샷 번호를 변경할 수 있도록 변수화
     snapshot_file: "injective_{{ snapshot_number }}.tar.lz4"
     snapshot_url: "https://snapshots.polkachu.com/snapshots/injective/{{ snapshot_file }}"
 
@@ -69,35 +69,20 @@
    
     # Reset Injective node state
     - name: Reset Injective node state
-      shell: injectived tendermint unsafe-reset-all --home {{ ansible_env.HOME }}/.injectived --keep-addr-book
-
-   # - name: Backup priv_validator_state.json
-   #   copy:
-   #     src: "{{ ansible_env.HOME }}/.injectived/data/priv_validator_state.json"
-   #     dest: "{{ ansible_env.HOME }}/.injectived/priv_validator_state.json.backup"
-   #     remote_src: yes
-
-    # Reset Injective node state
-    - name: Reset Injective node state
-      shell: injectived tendermint unsafe-reset-all --home {{ ansible_env.HOME }}/.injectived --keep-addr-book
-
-   # - name: Restore priv_validator_state.json
-   #   copy:
-   #     src: "{{ ansible_env.HOME }}/.injectived/priv_validator_state.json.backup"
-   #     dest: "{{ ansible_env.HOME }}/.injectived/data/priv_validator_state.json"
-   #     remote_src: yes
+      shell: injectived tendermint unsafe-reset-all --home {{ injective_home }} --keep-addr-book
  
     # wasm 폴더 삭제
     - name: Remove old wasm folder if exists
       file:
-        path: "{{ injective_home }}/wasm"
+        path: {{ injective_home }}/wasm"
         state: absent
 
-    #  스냅샷 압축 해제 (변수 적용)
     - name: Extract snapshot
-      shell: lz4 -c -d {{ snapshot_file }} | tar -x -C {{ ansible_env.HOME }}/.injectived
-      args:
-        chdir: "/home/ubuntu"
+       shell: |
+         lz4 -c -d {{ snapshot_file }} | tar -x -C {{ injective_home }}
+         chown -R ubuntu:ubuntu {{ injective_home }}
+       args:
+         chdir: "/home/ubuntu"
 
     # 7. 다운로드한 스냅샷 삭제하여 공간 확보
    # - name: Remove downloaded snapshot to save space

@@ -4,7 +4,7 @@
   become: yes
   vars:
     injective_home: "/home/ubuntu/.injectived"
-    snapshot_number: 106268970  # 최신 스냅샷 번호를 변경할 수 있도록 변수화
+    snapshot_number: 106492883  # 최신 스냅샷 번호를 변경할 수 있도록 변수화
     snapshot_file: "injective_{{ snapshot_number }}.tar.lz4"
     snapshot_url: "https://snapshots.polkachu.com/snapshots/injective/{{ snapshot_file }}"
 
@@ -56,10 +56,10 @@
             line: 'indexer = "null"'
 
               # Polkachu 스냅샷 다운로드 (변수 적용)
-   # - name: Download Polkachu snapshot
-   #   shell: wget -c -O {{ snapshot_file }} {{ snapshot_url }} --inet4-only
-   #   args:
-   #     chdir: "/home/ubuntu"
+    - name: Download Polkachu snapshot
+      shell: wget -c -O {{ snapshot_file }} {{ snapshot_url }} --inet4-only
+      args:
+        chdir: "/home/ubuntu"
 
           # Injective 서비스 중지
     - name: Stop Injective service if running
@@ -71,9 +71,7 @@
     # Reset Injective node state
     - name: Reset Injective node state
       shell: injectived tendermint unsafe-reset-all --home {{ ansible_env.HOME }}/.injectived --keep-addr-book
-     
-=======
-  
+
    # - name: Backup priv_validator_state.json
    #   copy:
    #     src: "{{ ansible_env.HOME }}/.injectived/data/priv_validator_state.json"
@@ -89,8 +87,7 @@
    #     src: "{{ ansible_env.HOME }}/.injectived/priv_validator_state.json.backup"
    #     dest: "{{ ansible_env.HOME }}/.injectived/data/priv_validator_state.json"
    #     remote_src: yes
-  
->>>>>>> 1ad2a1d (aws)
+ 
     # wasm 폴더 삭제
     - name: Remove old wasm folder if exists
       file:

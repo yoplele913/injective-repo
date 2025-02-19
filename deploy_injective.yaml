@@ -5,7 +5,7 @@
   become_method: sudo
   gather_facts: no
   vars:
-    injective_url: "https://github.com/InjectiveLabs/injective-chain-releases/releases/download/release-prod-1734610315/linux-amd64.zip"
+    injective_url: "https://github.com/InjectiveLabs/injective-chain-releases/releases/download/v1.14.0-1739303348/linux-amd64.zip"
     peggo_url: "https://github.com/InjectiveLabs/peggo/releases/download/v1.1.1/peggo-linux-amd64"
     seeds: "ade4d8bc8cbe014af6ebdf3cb7b1e9ad36f412c0@seeds.polkachu.com:14356"
     chain_id: "injective-1"

@@ -78,11 +78,11 @@
         state: absent
 
     - name: Extract snapshot
-       shell: |
-         lz4 -c -d {{ snapshot_file }} | tar -x -C {{ injective_home }}
-         chown -R ubuntu:ubuntu {{ injective_home }}
-       args:
-         chdir: "/home/ubuntu"
+      shell: |
+        lz4 -c -d {{ snapshot_file }} | tar -x -C {{ injective_home }}
+        chown -R ubuntu:ubuntu {{ injective_home }}
+      args:
+        chdir: "/home/ubuntu"
 
     # 7. 다운로드한 스냅샷 삭제하여 공간 확보
    # - name: Remove downloaded snapshot to save space

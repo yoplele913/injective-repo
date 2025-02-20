@@ -97,12 +97,12 @@
 
           [Service]
           WorkingDirectory=/usr/bin
-          ExecStart=/bin/bash -c '/usr/bin/injectived --log-level=error'
+          User=ubuntu
+          ExecStart=/usr/bin/injectived start --log-level=error'
           Type=simple
           Restart=always
           RestartSec=5
-          User=root
-
+          
           [Install]
           WantedBy=multi-user.target
 

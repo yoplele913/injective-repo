@@ -98,7 +98,7 @@
           [Service]
           WorkingDirectory=/usr/bin
           User=ubuntu
-          ExecStart=/usr/bin/injectived start --log-level=error'
+          ExecStart=/usr/bin/injectived start --log-level=error
           Type=simple
           Restart=always
           RestartSec=5

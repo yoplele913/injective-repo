@@ -10,6 +10,8 @@
     seeds: "ade4d8bc8cbe014af6ebdf3cb7b1e9ad36f412c0@seeds.polkachu.com:14356"
     chain_id: "injective-1"
     inventory_hostname: injective
+    go_version: "1.21.5"
+    go_url: "https://go.dev/dl/go{{ go_version }}.linux-amd64.tar.gz"
 
   tasks:
     - name: Install required dependencies
@@ -21,8 +23,42 @@
           - wget
           - unzip
           - lz4
+          - zstd
+          - tar
         state: present
+    # 1. golang installation 
+    - name: Download Go binary
+      get_url:
+        url: "{{ go_url }}"
+        dest: "/tmp/go{{ go_version }}.tar.gz"
 
+    #- name: Remove old Go installation
+    #  file:
+    #    path: "/usr/local/go"
+    #    state: absent
+
+    - name: Extract Go archive
+      unarchive:
+        src: "/tmp/go{{ go_version }}.tar.gz"
+        dest: "/usr/local"
+        remote_src: yes
+
+    - name: Set Go environment variables
+      lineinfile:
+        path: /etc/profile.d/go.sh
+        line: "{{ item }}"
+        create: yes
+        mode: '0755'
+      with_items:
+        - 'export PATH=$PATH:/usr/local/go/bin'
+        - 'export GOPATH=$HOME/go'
+        - 'export PATH=$PATH:$GOPATH/bin'
+
+    - name: Apply environment changes
+      shell: source /etc/profile.d/go.sh
+      args:
+        executable: /bin/bash
+    
     # 2. Injective 바이너리 다운로드 및 압축 해제
     - name: Download Injective binary
       get_url:

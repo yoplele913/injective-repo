@@ -18,3 +18,15 @@
         zstd -d --stdout injective_chain_latest.tar.zst | tar xf - -C ~/.injectived
       args:
         executable: /bin/bash
+
+    # Systemd 데몬 리로드
+    - name: Reload systemd daemon
+      shell: systemctl daemon-reload
+      async: 30
+      poll: 0
+
+    # Injective 서비스 시작
+    - name: Start Injective service
+      shell: systemctl start injectived
+      async: 30
+      poll: 0

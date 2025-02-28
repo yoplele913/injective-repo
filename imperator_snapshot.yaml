@@ -1,0 +1,20 @@
+- name: Download latest Injective snapshot
+  hosts: injective_nodes
+  gather_facts: no
+  tasks:
+    - name: Get latest snapshot URL
+      ansible.builtin.uri:
+        url: "https://imperator.co/services/chain-services/mainnets/injective"
+        return_content: yes
+      register: page_content
+
+    - name: Extract snapshot URL
+      set_fact:
+        snapshot_url: "{{ page_content.content | regex_search('https:\\/\\/s3\\.imperator\\.co\\/mainnets-snapshots\\/injective\\/injective_chain_[0-9]+\\.tar\\.zst') | first }}"
+
+    - name: Download and extract snapshot
+      ansible.builtin.shell: |
+        wget -O injective_chain_latest.tar.zst {{ snapshot_url }}
+        zstd -d --stdout injective_chain_latest.tar.zst | tar xf - -C ~/.injectived
+      args:
+        executable: /bin/bash

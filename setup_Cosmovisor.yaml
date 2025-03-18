@@ -1,0 +1,193 @@
+---
+- name: Configure Injective Node and Setup Cosmovisor
+  hosts: node02 
+  become: yes
+  vars:
+    username: "ubuntu"
+    home_dir: "/home/ubuntu"
+    injective_home: "/home/ubuntu/.injectived"
+    cosmovisor_bin: "/home/ubuntu/go/bin/cosmovisor"
+    injectived_bin: "/usr/bin/injectived"
+    go_bin: "/usr/local/go/bin/go"
+    systemd_service_path: "/etc/systemd/system/injectived.service"
+
+  tasks:
+    # 1️⃣ Persistent Peers 설정
+    #- name: Fetch Persistent Peers data from Imperator S3
+    #  uri:
+    #    url: "{{ persistent_peers_url }}"
+    #    return_content: yes
+    #  register: peers_data
+
+    #- name: Update config.toml with Persistent Peers
+    #  lineinfile:
+    #    path: "{{ config_toml }}"
+    #    regexp: '^persistent_peers =.*'
+    #    line: 'persistent_peers = "{{ peers_data.json.persistent_peers }}"'
+    #    backup: yes
+
+    - name: Ensure ubuntu has ownership of Go bin directory
+      file:
+        path: "{{ injective_home }}/cosmovisor"
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+        recurse: yes
+
+    - name: Ensure ubuntu user owns the Go bin directory
+      file:
+        path: "/home/ubuntu/go/bin"
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+        recurse: yes
+    
+    - name: Initialize Injective Node
+      shell: bash -lc '{{ injectived_bin }} init "my-node" --home {{ injective_home }}'
+      args:
+        creates: "{{ injective_home }}/config/genesis.json"
+      become_user: ubuntu
+
+    # 2️⃣ Cosmovisor 설치
+    - name: Install Cosmovisor using Go
+      shell: "{{ go_bin }} install cosmossdk.io/tools/cosmovisor/cmd/cosmovisor@v1.5.0"
+      args:
+        executable: /bin/bash
+      become_user: ubuntu
+        
+    - name: Add Go binaries to PATH
+      lineinfile:
+        path: "/home/ubuntu/.bashrc"
+        line: 'export PATH=$PATH:/home/ubuntu/go/bin'
+      register: path_update
+      become_user: ubuntu
+
+    - name: Apply new PATH settings
+      shell: bash -c 'source /home/ubuntu/.bashrc && echo $PATH'
+      register: new_path
+      changed_when: false
+      become_user: ubuntu
+
+    - name: Verify Cosmovisor installation
+      shell: bash -lc 'which cosmovisor'
+      register: cosmovisor_check
+      changed_when: false
+      ignore_errors: yes
+      become_user: ubuntu
+    
+    - name: Print Cosmovisor installation path
+      debug:
+        msg: "Cosmovisor installed at {{ cosmovisor_check.stdout }}"
+
+    # 3️⃣ 환경 변수 설정
+    - name: Ensure Cosmovisor environment variables are set
+      copy:
+        dest: "/etc/profile.d/cosmovisor.sh"
+        content: |
+          export PATH=$PATH:/home/ubuntu/go/bin
+          export DAEMON_NAME=injectived
+          export DAEMON_HOME={{ injective_home }}
+          export DAEMON_ALLOW_DOWNLOAD_BINARIES=true
+          export DAEMON_RESTART_AFTER_UPGRADE=true
+          export DAEMON_LOG_BUFFER_SIZE=512
+        mode: '0644'
+
+    - name: Check if environment variable file exists
+      stat:
+        path: "/etc/profile.d/cosmovisor.sh"
+      register: env_file
+
+    - name: Apply new environment variables
+      shell: bash -c 'source /etc/profile.d/cosmovisor.sh && env'
+      register: env_vars
+      changed_when: false
+      become_user: ubuntu
+
+    # 4️⃣ 디렉토리 구조 생성
+    - name: Create Genesis Directory
+      file:
+        path: "{{ injective_home }}/cosmovisor/genesis/bin"
+        state: directory
+        mode: '0755'
+
+    - name: Copy Injective Binary to Genesis Bin
+      copy:
+        src: "{{ injectived_bin }}"
+        dest: "{{ injective_home }}/cosmovisor/genesis/bin/injectived"
+        mode: '0755'
+        remote_src: yes
+      become_user: ubuntu
+    
+    # 2️⃣ Cosmovisor 실행 (환경 변수 적용 후 실행)
+    - name: Start Cosmovisor with environment variables
+      shell: bash -lc 'source /etc/profile.d/cosmovisor.sh && {{ cosmovisor_bin }} run start --home /home/ubuntu/.injectived --moniker injective' 
+      async: 600
+      poll: 0
+      register: cosmovisor_start
+      become_user: ubuntu
+
+    - name: Print Cosmovisor running status
+      debug:
+        msg: "Cosmovisor started successfully"
+
+    # 6️⃣ 체인 업그레이드 처리
+    - name: Create Upgrade Directory (example:v1.14.0)
+      file:
+        path: "{{ injective_home }}/cosmovisor/upgrades/v1.14.0/bin"
+        state: directory
+        mode: '0755'
+
+    - name: Copy New Injective Binary for Upgrade
+      copy:
+        src: "/usr/bin/injectived"
+        dest: "{{ injective_home }}/cosmovisor/upgrades/v1.14.0/bin/injectived"
+        mode: '0755'
+        remote_src: yes
+
+    - name: Copy libwasmvm.x86_64.so for Upgrade
+      copy:
+        src: "/usr/lib/libwasmvm.x86_64.so"
+        dest: "{{ injective_home }}/cosmovisor/upgrades/v1.14.0/bin/libwasmvm.x86_64.so"
+        mode: '0755'
+        remote_src: yes
+     
+    - name: Create Systemd service file for Cosmovisor
+      copy:
+        dest: "{{ systemd_service_path }}"
+        content: |
+          [Unit]
+          Description=Injective Daemon managed by Cosmovisor
+          After=network-online.target
+
+          [Service]
+          User={{ username }}
+          ExecStart=/home/ubuntu/go/bin/cosmovisor run start 
+          Restart=always
+          RestartSec=3
+          Environment="DAEMON_NAME=injectived"
+          Environment="DAEMON_HOME=/home/ubuntu/.injectived"
+          Environment="PATH=/usr/local/bin:{{ home_dir }}/go/bin:$PATH"
+          Environment="DAEMON_ALLOW_DOWNLOAD_BINARIES=false"
+          Environment="DAEMON_RESTART_AFTER_UPGRADE=true"
+          Environment="UNSAFE_SKIP_BACKUP=true"
+          Environment="LD_LIBRARY_PATH={{ injective_home }}/cosmovisor/current/bin"
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Reload Systemd daemon
+      command: systemctl daemon-reload
+
+    - name: Enable Cosmovisor service
+      systemd:
+        name: injectived
+        enabled: yes
+
+    - name: Start Cosmovisor service
+      systemd:
+        name: injectived
+        state: started
+
+        

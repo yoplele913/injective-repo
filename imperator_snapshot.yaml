@@ -1,32 +1,54 @@
-- name: Download latest Injective snapshot
+---
+- name: Injective 최신 스냅샷 다운로드 및 적용
   hosts: injective_nodes
-  gather_facts: no
+  become: yes
+  gather_facts: yes
+
   tasks:
-    - name: Get latest snapshot URL
-      ansible.builtin.uri:
-        url: "https://imperator.co/services/chain-services/mainnets/injective"
-        return_content: yes
-      register: page_content
+    - name: Fetch latest Injective snapshot URL from Imperator API
+      shell: >
+        curl -s https://api.imperator.co/services?network=mainnets | 
+        jq -r '.Injective.snapshots[0]["eu-west-1"][0].dl_url'
+      register: latest_snapshot
 
-    - name: Extract snapshot URL
+    - name: Extract snapshot filename
       set_fact:
-        snapshot_url: "{{ page_content.content | regex_search('https:\\/\\/s3\\.imperator\\.co\\/mainnets-snapshots\\/injective\\/injective_chain_[0-9]+\\.tar\\.zst') | first }}"
+            snapshot_filename: "{{ latest_snapshot.stdout | basename }}"
 
-    - name: Download and extract snapshot
-      ansible.builtin.shell: |
-        wget -O injective_chain_latest.tar.zst {{ snapshot_url }}
-        zstd -d --stdout injective_chain_latest.tar.zst | tar xf - -C ~/.injectived
+    - name: Download latest Injective snapshot (with progress)
+      shell: >
+        wget -c --progress=dot:mega -O /home/ubuntu/{{ snapshot_filename }} "{{ latest_snapshot.stdout }}"
       args:
-        executable: /bin/bash
+       chdir: /home/ubuntu/    
+    
+          # - name: 다운로드 성공 여부 확인
+          #debug:
+          #msg: "스냅샷 다운로드 완료: /home/ubuntu/{{ snapshot_file }}"
+          #when: download_result is succeeded
 
-    # Systemd 데몬 리로드
-    - name: Reload systemd daemon
-      shell: systemctl daemon-reload
-      async: 30
-      poll: 0
+    - name: priv_validator_state.json 백업
+      command: cp /home/ubuntu/.injectived/data/priv_validator_state.json /home/ubuntu/.injectived/priv_validator_state_backup.json
+      ignore_errors: yes
 
-    # Injective 서비스 시작
-    - name: Start Injective service
-      shell: systemctl start injectived
-      async: 30
-      poll: 0
+    - name: Injective 스냅샷 압축 해제 및 적용
+      command: >
+        zstd -c -d --stdout /home/ubuntu/{{ snapshot_filename }} | tar xf - -C /home/ubuntu/.injectived
+
+    - name: priv_validator_state.json 복원
+      command: cp /home/ubuntu/.injectived/priv_validator_state_backup.json /home/ubuntu/.injectived/data/priv_validator_state.json
+      ignore_errors: yes
+
+    - name: Injective 노드 재시작
+      systemd:
+        name: injectived
+        state: restarted
+        enabled: yes
+
+    - name: Injective 노드 상태 확인
+      command: curl -s https://rpc-injective.imperator.co/status
+      register: node_status
+
+    - name: Injective 노드 동기화 상태 출력
+      debug:
+        msg: "{{ node_status.stdout | from_json | json_query('result.sync_info') }}"
+

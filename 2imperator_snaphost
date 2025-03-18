@@ -1,0 +1,70 @@
+---
+- name: Setup Injective Node with Imperator Snapshot
+  hosts: injective_nodes
+  become: yes
+  gather_facts: yes
+  vars:
+    injective_home: "/home/ubuntu/.injectived"
+    snapshot_url: "https://s3.imperator.co/mainnets-snapshots/injective/"
+    snapshot_file: "injective_chain_109115089.tar.zst"
+
+  tasks:
+    - name: Download latest Imperator snapshot
+      get_url:
+        url: "{{ snapshot_url }}{{ snapshot_file }}"
+        dest: "/tmp/{{ snapshot_file }}"
+        mode: '0644'
+    
+    - name: Stop Injective service
+      systemd:
+        name: injectived
+        state: stopped
+      ignore_errors: yes
+    
+    - name: Backup priv_validator_state.json
+      copy:
+        src: "{{ injective_home }}/data/priv_validator_state.json"
+        dest: "{{ injective_home }}/priv_validator_state.json"
+        remote_src: yes
+      ignore_errors: yes
+    
+    - name: Reset Injective node
+      shell: "injectived tendermint unsafe-reset-all --home {{ injective_home }} --keep-addr-book"
+      args:
+        executable: /bin/bash
+      ignore_errors: yes
+
+    - name: Download latest Imperator snapshot
+      get_url:
+        url: "{{ snapshot_url }}{{ snapshot_file }}"
+        dest: "/tmp/{{ snapshot_file }}"
+        mode: '0644'
+
+    - name: Extract snapshot
+      shell: |
+        zstd -d --stdout /tmp/{{ snapshot_file }} | tar xf - -C {{ injective_home }}
+      args:
+        executable: /bin/bash
+
+    - name: Restore priv_validator_state.json
+      copy:
+        src: "{{ injective_home }}/priv_validator_state.json"
+        dest: "{{ injective_home }}/data/priv_validator_state.json"
+        remote_src: yes
+      ignore_errors: yes
+
+    - name: Start Injective service
+      systemd:
+        name: injectived
+        state: started
+        enabled: yes
+
+    - name: Verify Injective service status
+      command: journalctl -u injectived --no-pager | tail -n 20
+      register: injective_logs
+      changed_when: false
+
+    - name: Show last 20 lines of Injective logs
+      debug:
+        msg: "{{ injective_logs.stdout_lines }}"
+

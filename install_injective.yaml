@@ -1,124 +1,142 @@
 ---
-- name: Deploy Injective nodes
+- name: Install Injective Node from Source
   hosts: injective_nodes
-  become: yes
-  become_method: sudo
-  gather_facts: no
+  become: true
+  gather_facts: yes
   vars:
-    injective_version: "v1.14.0-1739303348"
-    repo_url: "https://github.com/InjectiveLabs/injective-chain-releases.git"
-    install_dir: "/home/ubuntu/injective"
-    chain_id: "injective-1"
-    inventory_hostname: injective
-    go_version: "1.21.5"
-    go_url: "https://go.dev/dl/go{{ go_version }}.linux-amd64.tar.gz"
+    injective_repo: "https://github.com/InjectiveFoundation/injective-core.git" 
+    injective_version: "v1.14.1"
+    seeds: "ade4d8bc8cbe014af6ebdf3cb7b1e9ad36f412c0@seeds.polkachu.com:14356"
+    go_version: "1.24.1"
+    go_tarball: "go{{ go_version }}.linux-amd64.tar.gz"
+    go_url: "https://go.dev/dl/{{ go_tarball }}"
+    install_path: "/home/ubuntu/injective-core"
+    dest_dir: "/usr/bin"
+    moniker: "injective"
+    injective_binary: "injectived"
+    wasm_lib_url: "https://github.com/CosmWasm/wasmvm/releases/download/v2.1.5/libwasmvm.x86_64.so"
+    wasm_lib_path: "/usr/lib/libwasmvm.x86_64.so"
 
   tasks:
-    - name: Install required dependencies
-      become: yes  # root 권한 실행
+    - name: Install required packages
       apt:
-        update_cache: yes
         name:
+          - unzip
+          - build-essential
+          - make
+          - lz4
           - curl
           - wget
-          - unzip
-          - lz4
-          - zstd
-          - tar
+          - gcc
+          - g++
+          - jq
         state: present
-    # 1. golang installation 
-    - name: Download Go binary
+        update_cache: yes
+      become: true
+    
+    - name: Remove existing Go installation
+      file:
+        path: "/usr/local/go" 
+        state: absent
+
+          #    - name: Remove any existing Go binary in /usr/bin
+          # file:
+          # path: "/usr/bin/go"
+          # state: absent
+
+    - name: Download Go {{ go_version }}
       get_url:
         url: "{{ go_url }}"
-        dest: "/tmp/go{{ go_version }}.tar.gz"
-
-    #- name: Remove old Go installation
-    #  file:
-    #    path: "/usr/local/go"
-    #    state: absent
+        dest: "/tmp/{{ go_tarball }}"
 
     - name: Extract Go archive
-      unarchive:
-        src: "/tmp/go{{ go_version }}.tar.gz"
-        dest: "/usr/local"
-        remote_src: yes
+      shell: "tar -C /usr/local -xzf /tmp/{{ go_tarball }}"
+      args:
+        executable: /bin/bash
 
     - name: Set Go environment variables
       lineinfile:
-        path: /etc/profile.d/go.sh
-        line: "{{ item }}"
+        path: /etc/profile.d/golang.sh
+        line: |
+          export PATH=$PATH:/usr/local/go/bin
+          export GOBIN=/home/ubuntu/go/bin
+          export PATH=$PATH:$GOBIN
         create: yes
-        mode: '0755'
-      with_items:
-        - 'export PATH=$PATH:/usr/local/go/bin'
-        - 'export GOPATH=$HOME/go'
-        - 'export PATH=$PATH:$GOPATH/bin'
+      become: true
 
-    - name: Apply environment changes
-      shell: source /etc/profile.d/go.sh
+    - name: Apply Go environment settings
+      shell: source /etc/profile.d/golang.sh
       args:
         executable: /bin/bash
-    
-    # 2. Injective 바이너리 다운로드 및 압축 해제
-    - name: Clone Injective repository
+      become: true
+      become_user: ubuntu
+          #  - name: Verify Go installation
+          # command: "go version"
+          #  register: go_version_check
+          # changed_when: false
+
+    - name: Clone Injective Core repository
       git:
-        repo: "{{ repo_url }}"
-        dest: "{{ install_dir }}"
+        repo: "{{ injective_repo }}"
+        dest: "{{ install_path }}"
         version: "{{ injective_version }}"
         force: yes
 
-    - name: Build Injective binary
-      shell: |
-        cd {{ install_dir }}
-        make install
+    - name: Checkout to specified version
+      shell: "cd {{ install_path }} && git checkout {{ injective_version }}"
       args:
         executable: /bin/bash
 
+    - name: Build Injective Node
+      shell: "source /etc/profile && cd {{ install_path }} && make install"
+      args:
+        executable: /bin/bash
+
+    - name: Move Injective binary to /usr/bin
+      copy:
+        src: "/home/ubuntu/go/bin/{{ injective_binary }}"
+        dest: "{{ dest_dir }}/{{ injective_binary }}"
+        remote_src: yes
+        mode: '0755'
+      become: false
+
     - name: Verify Injective installation
-      command: injectived version
-      register: injective_version_output
+      command: "{{ dest_dir }}/{{ injective_binary }} version"
+      register: injective_version_check
       changed_when: false
 
-    - debug:
-        msg: "Installed Injective version: {{ injective_version_output.stdout }}"
+    - name: Display installed Injective version
+      debug:
+        msg: "Installed Injective version: {{ injective_version_check.stdout }}"
 
-    - name: Extract Injective binary
-      unarchive:
-        src: /home/ubuntu/linux-amd64.zip
-        dest: /home/ubuntu/
-        remote_src: yes
-        extra_opts: ["-o"]
-
-    - name: Move injectived binary to /usr/bin
-      become: yes
-      become_user: root
-      command: sudo mv /home/ubuntu/injectived /usr/bin/
-
-    - name: Move peggo to /usr/bin
-      become: yes
-      become_user: root
-      command: sudo mv /home/ubuntu/peggo /usr/bin/
-
-    - name: Set execute permissions for injectived binary
+    - name: Remove old libwasmvm if exists
       file:
-        path: /usr/bin/injectived
+        path: "{{ wasm_lib_path }}"
+        state: absent
+    
+    - name: Download libwasmvm shared library
+      get_url:
+        url: "{{ wasm_lib_url }}"
+        dest: "{{ wasm_lib_path }}"
         mode: '0755'
 
-    # 4. 추가 라이브러리 설치
-    - name: Install libwasmvm
-      become: yes
-      become_user: root
-      command: sudo mv /home/ubuntu/libwasmvm.x86_64.so /usr/lib/
+    - name: Run ldconfig to update shared libraries
+      command: ldconfig
 
-    # 5. Injective 노드 초기화
+    - name: Verify libwasmvm installation
+      stat:
+        path: "{{ wasm_lib_path }}"
+      register: wasm_lib_check
+
+    # Injective 노드 초기화
     - name: Initialize Injective node
-      shell: injectived init "{{ inventory_hostname }}" --chain-id "{{ chain_id }}"
+      shell: injectived init "{{ moniker }}" --chain-id injective-1
       args:
         chdir: /home/ubuntu/
       become: yes
       become_user: ubuntu
 
-    # 6. Mainnet 설정 파일 복사
+    # Mainnet 설정 파일 복사
     - name: Clone Mainnet config repository
       git:
         repo: "https://github.com/InjectiveLabs/mainnet-config"
@@ -128,11 +146,13 @@
       copy:
         src: /home/ubuntu/mainnet-config/10001/genesis.json
         dest: /home/ubuntu/.injectived/config/genesis.json
+        remote_src: yes
 
     - name: Copy app.toml
       copy:
         src: /home/ubuntu/mainnet-config/10001/app.toml
         dest: /home/ubuntu/.injectived/config/app.toml
+        remote_src: yes
 
     - name: Configure seeds in config.toml
       lineinfile:
@@ -140,18 +160,18 @@
         regexp: '^seeds ='
         line: 'seeds = "{{ seeds }}"'
 
-    # 7. Systemd 서비스 파일 구성
-    - name: Configure systemd service for Injective (run as root)
+    - name: Configure systemd service for Injective
       copy:
         dest: /etc/systemd/system/injectived.service
         content: |
           [Unit]
-          Description=injectived
+          Description=Injective Node
+          After=network-online.target
 
           [Service]
           WorkingDirectory=/usr/bin
-          User=ubuntu
-          ExecStart=/usr/bin/injectived start --log-level=error
+          User=ubuntu 
+          ExecStart=/usr/bin/injectived start --log-level=info
           Type=simple
           Restart=always
           RestartSec=5
@@ -169,13 +189,4 @@
 
     - name: Enable Injectived service to start on boot
       command: sudo systemctl enable injectived
-      async: 30
-
-    - name: Stop Injectived service (if needed)
-      command: sudo systemctl stop injectived
-      ignore_errors: yes
-      async: 30
-
-    - name: Start Injectived service
-      command: sudo systemctl start injectived
       async: 30

@@ -1,0 +1,108 @@
+- name: Install Injective Node with Latest Versions
+  hosts: injective_nodes
+  become: yes
+  vars:
+    go_version: "1.24.1"
+    injective_repo: "https://github.com/InjectiveLabs/injective-chain-releases.git"
+    injective_version: "v1.14.1-1740773301"  # 최신 버전
+    install_path: "/opt/injective-chain"
+    dest_dir: "/usr/bin"
+    moniker: "injetive"
+
+  tasks:
+    # 1. 기존 Go 삭제 및 최신 버전 설치
+    - name: Remove any existing Go installation
+      file:
+        path: /usr/local/go
+        state: absent
+
+    - name: Download Go binary (version {{ go_version }})
+      get_url:
+        url: "https://go.dev/dl/go{{ go_version }}.linux-amd64.tar.gz"
+        dest: "/tmp/go{{ go_version }}.linux-amd64.tar.gz"
+        mode: '0644'
+
+    - name: Extract Go archive
+      ansible.builtin.unarchive:
+        src: "/tmp/go{{ go_version }}.linux-amd64.tar.gz"
+        dest: "/usr/local"
+        remote_src: yes
+
+    - name: Add Go to PATH environment variable
+      lineinfile:
+        path: "/etc/profile"
+        line: 'export PATH=$PATH:/usr/local/go/bin'
+        create: yes
+
+    - name: Apply environment variable changes
+      shell: source /etc/profile
+
+    - name: Verify Go installation
+      command: go version
+      register: go_version_output
+
+    - name: Display Go version
+      debug:
+        msg: "{{ go_version_output.stdout }}"
+
+    # 2. Injective 노드 소스 코드 다운로드 및 빌드
+    - name: Clone Injective Labs repository (version {{ injective_version }})
+      git:
+        repo: "{{ injective_repo }}"
+        dest: "{{ install_path }}"
+        force: yes
+        version: "{{ injective_version }}"
+
+    - name: Checkout specific Injective version
+      shell: |
+        git fetch --tags
+        git checkout {{ injective_version }} || git checkout origin/{{ injective_version }}
+      args:
+        chdir: "{{ install_path }}"
+
+    - name: Build Injective Node
+      shell: |
+        make build || make all
+      args:
+        chdir: "{{ install_path }}"
+      register: make_output
+
+    - name: Display build output
+      debug:
+        msg: "{{ make_output.stdout_lines }}"
+
+    # 3. Injective 바이너리 이동
+    - name: Move Injective binary to /usr/bin
+      copy:
+        src: "{{ install_path }}/injectived"
+        dest: "{{ dest_dir }}/injectived"
+        mode: '0755'
+        remote_src: yes
+
+    - name: Move libwasmvm to /usr/lib
+      copy:
+        src: "{{ install_path }}/libwasmvm.x86_64.so"
+        dest: "/usr/lib/libwasmvm.x86_64.so"
+        mode: '0755'
+        remote_src: yes
+
+    # 4. Injective 노드 초기화
+    - name: Set Moniker variable
+      lineinfile:
+        path: "/etc/profile"
+        line: "export MONIKER={{ moniker }}"
+        create: yes
+
+    - name: Apply Moniker variable
+      shell: source /etc/profile
+
+    - name: Initialize Injective Node
+      shell: injectived init {{ moniker }} --chain-id injective-1
+      args:
+        chdir: "{{ install_path }}"
+      register: init_output
+
+    - name: Display Injective init output
+      debug:
+        msg: "{{ init_output.stdout_lines }}"
+

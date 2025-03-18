@@ -1,5 +1,5 @@
 ---
-- name: Injective 최신 스냅샷 다운로드 및 적용
+- name: Imperator latest snapshot install and applied to injective node
   hosts: injective_nodes
   become: yes
   gather_facts: yes
@@ -21,34 +21,34 @@
       args:
        chdir: /home/ubuntu/    
     
-          # - name: 다운로드 성공 여부 확인
+          # - name: Check for success downloading
           #debug:
           #msg: "스냅샷 다운로드 완료: /home/ubuntu/{{ snapshot_file }}"
           #when: download_result is succeeded
 
-    - name: priv_validator_state.json 백업
+    - name: priv_validator_state.json backup
       command: cp /home/ubuntu/.injectived/data/priv_validator_state.json /home/ubuntu/.injectived/priv_validator_state_backup.json
       ignore_errors: yes
 
-    - name: Injective 스냅샷 압축 해제 및 적용
+    - name: Decompress Imperator snapshot flie
       command: >
         zstd -c -d --stdout /home/ubuntu/{{ snapshot_filename }} | tar xf - -C /home/ubuntu/.injectived
 
-    - name: priv_validator_state.json 복원
+    - name: Restore priv_validator_state.json 
       command: cp /home/ubuntu/.injectived/priv_validator_state_backup.json /home/ubuntu/.injectived/data/priv_validator_state.json
       ignore_errors: yes
 
-    - name: Injective 노드 재시작
+    - name: Restart injective service 
       systemd:
         name: injectived
         state: restarted
         enabled: yes
 
-    - name: Injective 노드 상태 확인
+    - name: Check injective node status 
       command: curl -s https://rpc-injective.imperator.co/status
       register: node_status
 
-    - name: Injective 노드 동기화 상태 출력
+    - name: Print out injective node sync status 
       debug:
         msg: "{{ node_status.stdout | from_json | json_query('result.sync_info') }}"
 

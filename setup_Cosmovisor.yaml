@@ -1,6 +1,6 @@
 ---
 - name: Configure Injective Node and Setup Cosmovisor
-  hosts: node02 
+  hosts: injective_nodes 
   become: yes
   vars:
     username: "ubuntu"
@@ -34,10 +34,11 @@
         group: ubuntu
         mode: '0755'
         recurse: yes
+      become: yes
 
     - name: Ensure ubuntu user owns the Go bin directory
       file:
-        path: "/home/ubuntu/go/bin"
+        path: "/home/ubuntu/go"
         state: directory
         owner: ubuntu
         group: ubuntu
@@ -118,6 +119,7 @@
         dest: "{{ injective_home }}/cosmovisor/genesis/bin/injectived"
         mode: '0755'
         remote_src: yes
+      become: yes
       become_user: ubuntu
     
     # 2️⃣ Cosmovisor 실행 (환경 변수 적용 후 실행)

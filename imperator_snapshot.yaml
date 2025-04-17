@@ -7,42 +7,45 @@
   tasks:
     - name: Fetch latest Injective snapshot URL from Imperator API
       shell: >
-        curl -s https://api.imperator.co/services?network=mainnets | 
+        curl -s https://api.imperator.co/services?network=mainnets |
         jq -r '.Injective.snapshots[0]["eu-west-1"][0].dl_url'
       register: latest_snapshot
 
     - name: Extract snapshot filename
       set_fact:
             snapshot_filename: "{{ latest_snapshot.stdout | basename }}"
-
-    - name: Download latest Injective snapshot (with progress)
+  
+    - name: Download latest Injective snapshot (with progress) 
       shell: >
         wget -c --progress=dot:mega -O /home/ubuntu/{{ snapshot_filename }} "{{ latest_snapshot.stdout }}"
       args:
-       chdir: /home/ubuntu/    
+       chdir: /home/ubuntu/
     
-          # - name: 다운로드 성공 여부 확인
-          #debug:
-          #msg: "스냅샷 다운로드 완료: /home/ubuntu/{{ snapshot_file }}"
-          #when: download_result is succeeded
+    - name: Stop Injective service if running
+      shell: sudo systemctl stop injectived
+      ignore_errors: yes
+      async: 30  
+
+    - name: Reset Injective node state
+      shell: injectived tendermint unsafe-reset-all --home /home/ubuntu/.injectived --keep-addr-book     
 
     - name: priv_validator_state.json 백업
-      command: cp /home/ubuntu/.injectived/data/priv_validator_state.json /home/ubuntu/.injectived/priv_validator_state_backup.json
+      command: cp /home/ubuntu/.injectived/data/priv_validator_state.json /home/ubuntu/.injectived/priv_validator_state.json
       ignore_errors: yes
-
+  
     - name: Injective 스냅샷 압축 해제 및 적용
-      command: >
-        zstd -c -d --stdout /home/ubuntu/{{ snapshot_filename }} | tar xf - -C /home/ubuntu/.injectived
-
+      shell: |
+        zstd -d --stdout /home/ubuntu/{{ snapshot_filename }} | tar xf - -C /home/ubuntu/.injectived
+        chown -R ubuntu:ubuntu /home/ubuntu/.injectived*
+    
     - name: priv_validator_state.json 복원
-      command: cp /home/ubuntu/.injectived/priv_validator_state_backup.json /home/ubuntu/.injectived/data/priv_validator_state.json
+      command: cp /home/ubuntu/.injectived/priv_validator_state.json /home/ubuntu/.injectived/data/priv_validator_state.json
       ignore_errors: yes
 
-    - name: Injective 노드 재시작
-      systemd:
-        name: injectived
-        state: restarted
-        enabled: yes
+    - name: Restart Injective service 
+      shell: systemctl restart injectived
+      async: 30
+      poll: 0
 
     - name: Injective 노드 상태 확인
       command: curl -s https://rpc-injective.imperator.co/status

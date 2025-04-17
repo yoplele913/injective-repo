@@ -1,6 +1,6 @@
 ---
 - name: Deploy Injective nodes
-  hosts: localhost
+  hosts: injective_nodes
   become: yes
   become_method: sudo
   gather_facts: no

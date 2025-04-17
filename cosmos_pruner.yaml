@@ -1,0 +1,95 @@
+---
+- name: Automate Cosmos-Pruner Process and S3 Backup
+  hosts: injective_nodes
+  become: yes
+  tasks:
+
+    # Step 1: Clone cosmprund repo and build
+    - name: Clone cosmprund repository
+      git:
+        repo: https://github.com/notional-labs/cosmprund
+        dest: /home/ubuntu/cosmprund
+        clone: yes
+        update: yes
+
+    - name: Build cosmprund
+      shell: |
+        source /etc/profile.d/golang.sh
+        make build
+      args:
+        chdir: /home/ubuntu/cosmprund
+        executable: /bin/bash
+
+    - name: Stop injectived node
+      systemd:
+        name: injectived
+        state: stopped
+        enabled: no
+    
+    # Step 2: Archive data before pruning
+    - name: Archive data before pruning (data)
+      command:
+        cmd: >
+          tar -czf /home/ubuntu/injective-data-backup.tar.gz /home/ubuntu/.injectived/data
+      register: data_backup_before_prune
+
+    - name: Upload data backup to S3 (data)
+      command:
+        cmd: >
+          aws s3 cp /home/ubuntu/injective-data-backup.tar.gz s3://injectivenode-cosmprune/data/
+      when: data_backup_before_prune.changed
+
+    - name: Archive wasm before pruning
+      command:
+        cmd: >
+          tar -czf /home/ubuntu/injective-wasm-backup.tar.gz /home/ubuntu/.injectived/wasm
+      register: wasm_backup_before_prune
+
+    - name: Upload wasm backup to S3
+      command:
+        cmd: >
+          aws s3 cp /home/ubuntu/injective-wasm-backup.tar.gz s3://injectivenode-cosmprune/wasm/
+      when: wasm_backup_before_prune.changed
+
+    # Step 3: Run the pruning process
+    - name: Check the current block height for pruning
+      command:
+        cmd: >
+          injectived status | jq .sync_info.latest_block_height
+      register: current_block_height
+
+    - name: Set blocks parameter for pruning
+      set_fact:
+        blocks_to_prune: "{{ current_block_height.stdout | int - 100000 }}"  # Keep the last 100,000 blocks
+
+    - name: Run Cosmos-Pruner for pruning
+      command:
+        cmd: >
+          /home/ubuntu/cosmprund/build/cosmprund prune /home/ubuntu/.injectived/data --backend=pebbledb --blocks={{ blocks_to_prune }} --versions=362
+      register: pruning_result
+
+    # Step 4: Archive data after pruning
+    - name: Archive data after pruning (data)
+      command:
+        cmd: >
+          tar -czf /home/ubuntu/injective-data-pruned-backup.tar.gz /home/ubuntu/.injectived/data
+      register: data_backup_after_prune
+
+    - name: Upload pruned data backup to S3 (data)
+      command:
+        cmd: >
+          aws s3 cp /home/ubuntu/injective-data-pruned-backup.tar.gz s3://injectivenode-cosmprune/data/
+      when: data_backup_after_prune.changed
+
+    - name: Archive wasm after pruning
+      command:
+        cmd: >
+          tar -czf /home/ubuntu/injective-wasm-pruned-backup.tar.gz /home/ubuntu/.injectived/wasm
+      register: wasm_backup_after_prune
+
+    - name: Upload wasm pruned backup to S3
+      command:
+        cmd: >
+          aws s3 cp /home/ubuntu/injective-wasm-pruned-backup.tar.gz s3://injectivenode-cosmprune/wasm/
+      when: wasm_backup_after_prune.changed
+

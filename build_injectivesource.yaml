@@ -7,7 +7,7 @@
     injective_repo: "https://github.com/InjectiveFoundation/injective-core.git" 
     injective_version: "v1.14.1"
     seeds: "ade4d8bc8cbe014af6ebdf3cb7b1e9ad36f412c0@seeds.polkachu.com:14356"
-    go_version: "1.24.2"
+    go_version: "1.24.1"
     go_tarball: "go{{ go_version }}.linux-amd64.tar.gz"
     go_url: "https://go.dev/dl/{{ go_tarball }}"
     install_path: "/home/ubuntu/injective-core"
@@ -26,20 +26,18 @@
           - make
           - lz4
           - curl
-          - zstd
           - wget
           - gcc
           - g++
           - jq
-          - tar  
         state: present
         update_cache: yes
       become: true
     
     - name: Remove existing Go installation
       file:
-       path: "/usr/local/go#" 
-       state: absent
+        path: "/usr/local/go" 
+        state: absent
 
     - name: Download Go {{ go_version }}
       get_url:
@@ -51,26 +49,40 @@
       args:
         executable: /bin/bash
 
-    - name: Add /usr/local/go/bin to the PATH environment variable
-      lineinfile:
-        path: /etc/profile
-        line: "export PATH=$PATH:/usr/local/go/bin"
-        create: yes
-        state: present
-
-    - name: Apply Go environment variables
+    - name: Configure Go environment in /etc/profile.d/golang.sh
+      copy:
+        dest: /etc/profile.d/golang.sh
+        content: |
+          export GOROOT=/usr/local/go
+          export GOPATH=/home/ubuntu/go
+          export GOBIN=$GOPATH/bin
+          export PATH=$PATH:/usr/local/go/bin:$GOBIN
+          export GOPROXY=https://proxy.golang.org,direct
+        owner: root
+        group: root
+        mode: '0644'
+      become: true
+    
+    - name: Source Go environment and verify go version
       shell: |
-        export PATH=$PATH:/usr/local/go/bin
-        source /etc/profile
+        source /etc/profile.d/golang.sh
+        go version
+      args:
+        executable: /bin/bash
+          
+    - name: Set GOPROXY to avoid git prompt issues
+      lineinfile:
+        path: /etc/profile.d/golang.sh
+        line: 'export GOPROXY=https://proxy.golang.org,direct'
+        create: yes
+      become: true
+
+    - name: Clean Go module cache
+      shell: "/usr/local/go/bin/go clean -modcache"
       args:
         executable: /bin/bash
       become: true
-      
-        #- name: Verify Go installation
-        #command: "go version"
-        #register: go_version_check
-        #changed_when: false
-        #failed_when: go_version_check.rc != 0
+      become_user: ubuntu
         
     - name: Clone Injective Core repository
       git:
@@ -79,23 +91,30 @@
         version: "{{ injective_version }}"
         force: yes
 
-    - name: Checkout to specified version
-      shell: "cd {{ install_path }} && git checkout {{ injective_version }}"
+    - name: Add Injective Core directory as a safe Git directory
+      shell: "git config --global --add safe.directory /home/ubuntu/injective-core"
       args:
         executable: /bin/bash
+
+    - name: Change ownership of Injective Core directory
+      shell: "sudo chown -R ubuntu:ubuntu /home/ubuntu/injective-core"
+      args:
+        executable: /bin/bash
+      become: true      
     
-    - name: Set Git safe directory
-      shell: git config --global --add safe.directory /home/ubuntu/injective-core
+    - name: Checkout version, tidy modules, and build Injective Node
+      shell: |
+        source /etc/profile.d/golang.sh
+        cd {{ install_path }}
+        git checkout {{ injective_version }}
+        go clean -modcache
+        go mod tidy
+        make install
+      args:
+        executable: /bin/bash
       become: true
       become_user: ubuntu
 
-    - name: Build Injective Node
-      shell: |
-        export PATH=$PATH:/usr/local/go/bin
-        cd /home/ubuntu/injective-core && make install
-      args:
-        executable: /bin/bash
-          
     - name: Move Injective binary to /usr/bin
       copy:
         src: "/home/ubuntu/go/bin/{{ injective_binary }}"

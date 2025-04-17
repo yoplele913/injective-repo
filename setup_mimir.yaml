@@ -1,0 +1,97 @@
+---
+- name: Setup Mimir + Alloy + Docker stack
+  hosts: localhost
+  become: yes
+
+  vars:
+    repo_url: https://github.com/yoplele913/Resources.git
+    git_clone_dir: /home/ubuntu/tmp-clone
+    config_dir: /home/ubuntu/config
+    compose_dir: /home/ubuntu/mimir
+    alloy_version: "latest"
+    alloy_dest: /usr/local/bin/alloy
+
+  tasks:
+    - name: Install required packages
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - software-properties-common
+          - git
+        state: present
+        update_cache: yes
+
+    - name: Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker repo
+      apt_repository:
+        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable
+        state: present
+
+    - name: Install Docker Engine
+      apt:
+        name: docker-ce
+        state: latest
+        update_cache: yes
+
+    - name: Install Docker Compose plugin
+      apt:
+        name: docker-compose-plugin
+        state: present
+
+    - name: Clone configuration repository
+      git:
+        repo: "{{ repo_url }}"
+        dest: "{{ git_clone_dir }}"
+        version: main
+
+    - name: Create config directory
+      file:
+        path: "{{ config_dir }}"
+        state: directory
+        mode: 0755
+
+    - name: Move Mimir config to /home/ubuntu/config
+      copy:
+        src: "{{ git_clone_dir }}/mimir-config.yaml"
+        dest: "{{ config_dir }}/mimir-config.yaml"
+        remote_src: yes
+
+    - name: Create mimir directory
+      file:
+        path: "{{ compose_dir }}"
+        state: directory
+        mode: 0755
+
+    - name: Move docker-compose.yaml to /home/ubuntu/mimir
+      copy:
+        src: "{{ git_clone_dir }}/docker-compose.yaml"
+        dest: "{{ compose_dir }}/docker-compose.yaml"
+        remote_src: yes
+
+    - name: Start Mimir stack with docker compose
+      shell: docker compose up -d
+      args:
+        chdir: "{{ compose_dir }}"
+
+    - name: Install Grafana Alloy (condensed shell version)
+      become: yes
+      shell: |
+        apt-get update && apt-get install -y gpg wget curl apt-transport-https
+        mkdir -p /etc/apt/keyrings/
+        wget -q -O - https://apt.grafana.com/gpg.key | gpg --dearmor | tee /etc/apt/keyrings/grafana.gpg > /dev/null
+        echo "deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stable main" | tee /etc/apt/sources.list.d/grafana.list
+        apt-get update && apt-get install -y alloy
+
+    - name: Symlink alloy binary
+      file:
+        src: "{{ alloy_dest }}"
+        dest: /usr/bin/alloy
+        state: link
+        force: yes
+

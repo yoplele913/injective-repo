@@ -1,0 +1,70 @@
+---
+- name: Injective State Sync via Polkachu
+  hosts: injective_nodes
+  become: yes
+  vars:
+    injective_home: "/home/ubuntu/.injectived"
+    rpc_server: "https://injective-rpc.polkachu.com:443"
+    wasm_url: "https://snapshots.polkachu.com/wasm/injective/wasmonly.tar.lz4"
+
+  tasks:
+    - name: Stop injectived service
+      ansible.builtin.service:
+        name: injectived
+        state: stopped
+
+    - name: Reset node state (unsafe-reset-all)
+      ansible.builtin.shell: >
+        injectived tendermint unsafe-reset-all --home {{ injective_home }}
+      become_user: ubuntu
+
+    - name: Create state_sync.sh script
+      ansible.builtin.copy:
+        dest: /home/ubuntu/state_sync.sh
+        owner: ubuntu
+        mode: '0755'
+        content: |
+          #!/bin/bash
+          SNAP_RPC="{{ rpc_server }}"
+
+          LATEST_HEIGHT=$(curl -s $SNAP_RPC/block | jq -r .result.block.header.height)
+          BLOCK_HEIGHT=$((LATEST_HEIGHT - 2000))
+          TRUST_HASH=$(curl -s "$SNAP_RPC/block?height=$BLOCK_HEIGHT" | jq -r .result.block_id.hash)
+
+          sed -i.bak -E "s|^(enable[[:space:]]+=[[:space:]]+).*|\1true|" $HOME/.injectived/config/config.toml
+          sed -i -E "s|^(rpc_servers[[:space:]]+=[[:space:]]+).*|\1\"$SNAP_RPC,$SNAP_RPC\"|" $HOME/.injectived/config/config.toml
+          sed -i -E "s|^(trust_height[[:space:]]+=[[:space:]]+).*|\1$BLOCK_HEIGHT|" $HOME/.injectived/config/config.toml
+          sed -i -E "s|^(trust_hash[[:space:]]+=[[:space:]]+).*|\1\"$TRUST_HASH\"|" $HOME/.injectived/config/config.toml
+
+    - name: Run state_sync.sh
+      ansible.builtin.shell: bash /home/ubuntu/state_sync.sh
+      become_user: ubuntu
+
+    - name: Remove existing wasm folder (if exists)
+      ansible.builtin.file:
+        path: "{{ injective_home }}/wasm"
+        state: absent
+
+    - name: Download wasm snapshot (IPv4 only)
+      ansible.builtin.shell: |
+        wget -O injective_wasmonly.tar.lz4 https://snapshots.polkachu.com/wasm/injective/injective_wasmonly.tar.lz4 --inet4-only
+      args:
+        chdir: /home/ubuntu
+      become_user: ubuntu
+
+    - name: Extract wasm snapshot
+      ansible.builtin.shell: |
+        lz4 -c -d injective_wasmonly.tar.lz4 | tar -x -C {{ injective_home }}
+      args:
+        chdir: /home/ubuntu
+      become_user: ubuntu
+
+    - name: Clean up wasm archive
+      ansible.builtin.file:
+        path: "/home/ubuntu/injective_wasmonly.tar.lz4"
+        state: absent
+
+    - name: Start injectived service
+      ansible.builtin.service:
+        name: injectived
+        state: started
